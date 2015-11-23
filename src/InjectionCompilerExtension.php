@@ -104,7 +104,6 @@ class InjectionCompilerExtension extends CompilerExtension
 			$this->injectForServiceDefinition($className, $definition);
 		}
 
-
 		foreach ($this->getContainerBuilder()->getDefinitions() as $def) {
 			if ($def->getTag(self::TAG_INJECT) && $def->getClass()) {
 				$this->updateDefinition($def);

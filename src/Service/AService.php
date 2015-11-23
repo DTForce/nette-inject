@@ -7,6 +7,7 @@
 
 namespace DTForce\NetteInject\Service;
 
+
 /**
  * Common service ancestor allowing to inject service thanks to {@see InjectionCompilerExtension}.
  *
@@ -72,4 +73,5 @@ abstract class AService implements IInjectableService
 	{
 		$this->InjectableTrait_injectParameters($container);
 	}
+
 }

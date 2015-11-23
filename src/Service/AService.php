@@ -6,6 +6,7 @@
  */
 
 namespace DTForce\NetteInject\Service;
+use Nette\Utils\Arrays;
 
 
 /**
@@ -72,6 +73,21 @@ abstract class AService implements IInjectableService
 	public function injectParameters(\Nette\DI\Container $container)
 	{
 		$this->InjectableTrait_injectParameters($container);
+	}
+
+
+	/**
+	 * Returns value of parameter in DI container. It starts at
+	 * parameters: key in config and you can
+	 * use dot to navigate to deeper levels.
+	 *
+	 * @param $key
+	 * @param mixed $default Default value returned, if value was not found.
+	 * @return mixed
+	 */
+	protected function getParameter($key, $default = null)
+	{
+		return Arrays::get($this->InjectableTrait_parameters, explode('.', $key), $default);
 	}
 
 }

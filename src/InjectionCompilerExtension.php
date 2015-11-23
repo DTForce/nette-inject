@@ -9,6 +9,7 @@
 namespace DTForce\NetteInject;
 
 use DTForce\NetteInject\Service\IInjectableService;
+use DTForce\NetteInject\Service\InjectableTrait;
 use DTForce\NetteInject\Service\IServiceMarker;
 use Nette\Configurator;
 use Nette\DI\CompilerExtension;
@@ -18,6 +19,7 @@ use Nette\DI\Statement;
 use Nette\Loaders\RobotLoader;
 use Nette\Reflection\ClassType;
 use Nette\Utils\Strings;
+use ReflectionClass;
 
 
 /**
@@ -41,6 +43,22 @@ class InjectionCompilerExtension extends CompilerExtension
 	const IIS_GET_INJECTION_PROPS_METHOD = 'getInjectionByNameProperties';
 	const IIS_GET_INJECTION_PROPS_TYPE_METHOD = 'getInjectionByTypeProperties';
 	const IIS_INJECTION_COMPLETED_METHOD = 'injectionCompleted';
+
+	const METHOD_MAPPING_INTERFACE = [
+		self::IIS_INJECT_SERVICE_METHOD => self::IIS_INJECT_SERVICE_METHOD,
+		self::IIS_INJECT_PARAMETERS_METHOD => self::IIS_INJECT_PARAMETERS_METHOD,
+		self::IIS_GET_INJECTION_PROPS_METHOD => self::IIS_GET_INJECTION_PROPS_METHOD,
+		self::IIS_GET_INJECTION_PROPS_TYPE_METHOD => self::IIS_GET_INJECTION_PROPS_TYPE_METHOD,
+		self::IIS_INJECTION_COMPLETED_METHOD => self::IIS_INJECTION_COMPLETED_METHOD
+	];
+
+	const METHOD_MAPPING_TRAIT = [
+		self::IIS_INJECT_SERVICE_METHOD => 'InjectableTrait_' . self::IIS_INJECT_SERVICE_METHOD,
+		self::IIS_INJECT_PARAMETERS_METHOD => 'InjectableTrait_' . self::IIS_INJECT_PARAMETERS_METHOD,
+		self::IIS_GET_INJECTION_PROPS_METHOD => 'InjectableTrait_' . self::IIS_GET_INJECTION_PROPS_METHOD,
+		self::IIS_GET_INJECTION_PROPS_TYPE_METHOD => 'InjectableTrait_' . self::IIS_GET_INJECTION_PROPS_TYPE_METHOD,
+		self::IIS_INJECTION_COMPLETED_METHOD => 'InjectableTrait_' . self::IIS_INJECTION_COMPLETED_METHOD
+	];
 
 	/**
 	 * @var RobotLoader
@@ -156,6 +174,16 @@ class InjectionCompilerExtension extends CompilerExtension
 
 
 	/**
+	 * @param string $className
+	 * @return bool
+	 */
+	private static function usesInjectableTrait($className)
+	{
+		return in_array(InjectableTrait::class, class_uses($className));
+	}
+
+
+	/**
 	 * @param ClassType $class
 	 * @return bool
 	 */
@@ -169,9 +197,9 @@ class InjectionCompilerExtension extends CompilerExtension
 	 * @param ClassType $class
 	 * @return mixed|null
 	 */
-	private function getInjectionByNameProperties(ClassType $class)
+	private function getInjectionByNameProperties(ClassType $class, array $methodMapping)
 	{
-		$properties = $this->callStaticReflectionNoParams($class, self::IIS_GET_INJECTION_PROPS_METHOD);
+		$properties = $this->callStaticReflectionNoParams($class, $methodMapping[self::IIS_GET_INJECTION_PROPS_METHOD]);
 		return $properties;
 	}
 
@@ -180,9 +208,9 @@ class InjectionCompilerExtension extends CompilerExtension
 	 * @param ClassType $class
 	 * @return mixed|null
 	 */
-	private function getInjectionByTypeProperties(ClassType $class)
+	private function getInjectionByTypeProperties(ClassType $class, array $methodMapping)
 	{
-		$properties = $this->callStaticReflectionNoParams($class, self::IIS_GET_INJECTION_PROPS_TYPE_METHOD);
+		$properties = $this->callStaticReflectionNoParams($class, $methodMapping[self::IIS_GET_INJECTION_PROPS_TYPE_METHOD]);
 		return $properties;
 	}
 
@@ -207,24 +235,43 @@ class InjectionCompilerExtension extends CompilerExtension
 	{
 		$class = new ClassType($className);
 		if ($this->isInjectableService($class)) {
-			$injectionProperties = $this->getInjectionByNameProperties($class);
-			// Copy original setup method to be able to place them after injection
-			$setupSave = $definition->setup;
-			$definition->setup = [];
-			foreach ($injectionProperties as $injectionProperty => $injectedServiceName) {
-				$definition->addSetup(self::IIS_INJECT_SERVICE_METHOD, [$injectionProperty, '@' . $injectedServiceName]);
-			}
-			$injectionProperties = $this->getInjectionByTypeProperties($class);
-			foreach ($injectionProperties as $injectionProperty => $injectedServiceType) {
-				$definition->addSetup(self::IIS_INJECT_SERVICE_METHOD, [$injectionProperty, '@' . $injectedServiceType]);
-			}
+			$this->injectToDefinition($definition, $class, self::METHOD_MAPPING_INTERFACE);
+		} else if ($this->usesInjectableTrait($className)) {
+			$this->injectToDefinition($definition, $class, self::METHOD_MAPPING_TRAIT);
+		}
+	}
 
-			$definition->addSetup(self::IIS_INJECT_PARAMETERS_METHOD, ['@container']);
-			$definition->addSetup(self::IIS_INJECTION_COMPLETED_METHOD, []);
-			// Add original setup statements after injection completed method call
-			foreach ($setupSave as $originalSetup) {
-				$definition->setup[] = $originalSetup;
-			}
+
+	/**
+	 * @param ServiceDefinition $definition
+	 * @param ClassType $class
+	 * @param array $methodMapping
+	 */
+	public function injectToDefinition(ServiceDefinition $definition, ClassType $class, array $methodMapping)
+	{
+		$injectionProperties = $this->getInjectionByNameProperties($class, $methodMapping);
+		// Copy original setup method to be able to place them after injection
+		$setupSave = $definition->setup;
+		$definition->setup = [];
+		foreach ($injectionProperties as $injectionProperty => $injectedServiceName) {
+			$definition->addSetup(
+				$methodMapping[self::IIS_INJECT_SERVICE_METHOD],
+				[$injectionProperty, '@' . $injectedServiceName]
+			);
+		}
+		$injectionProperties = $this->getInjectionByTypeProperties($class, $methodMapping);
+		foreach ($injectionProperties as $injectionProperty => $injectedServiceType) {
+			$definition->addSetup(
+				$methodMapping[self::IIS_INJECT_SERVICE_METHOD],
+				[$injectionProperty, '@' . $injectedServiceType]
+			);
+		}
+
+		$definition->addSetup($methodMapping[self::IIS_INJECT_PARAMETERS_METHOD], ['@container']);
+		$definition->addSetup($methodMapping[self::IIS_INJECTION_COMPLETED_METHOD], []);
+		// Add original setup statements after injection completed method call
+		foreach ($setupSave as $originalSetup) {
+			$definition->addSetup($originalSetup);
 		}
 	}
 

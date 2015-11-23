@@ -1,0 +1,26 @@
+{
+	"name": "dtforce/nette-inject",
+	"description": "An extension improving injection in services for Nette framework.",
+	"authors": [
+		{
+			"name": "DTForce - Jan Mareš",
+			"email": "jan.mares@dtforce.com",
+			"homepage": "http://www.dtforce.com",
+			"role": "Developer"
+		}
+	],
+	"license": [
+	       "LGPL-2.1"
+	],
+	"support":{
+		"issues": "https://github.com/DTForce/nette-inject/issues"
+	},
+	"require": {
+		"php": ">=5.4"
+	},
+	"autoload": {
+		"psr-4" : {
+			"DTForce\\NetteInject\\" : "src"
+		}
+	}
+}

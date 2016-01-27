@@ -10,6 +10,7 @@ namespace DTForce\NetteInject\Service;
 use InvalidArgumentException;
 use Nette\Reflection\AnnotationsParser;
 use Nette\Reflection\ClassType;
+use ReflectionClass;
 
 
 /**
@@ -75,7 +76,10 @@ trait InjectableTrait
 		if ( ! array_key_exists($propertyName, $this->InjectableTrait_alreadyInjected)
 			&& ! $this->InjectableTrait_injectionCompleted
 		) {
-			$this->{$propertyName} = $service;
+			$reflectionClass = self::InjectableTrait_getReflection();
+			$property = $reflectionClass->getProperty($propertyName);
+			$property->setAccessible(true);
+			$property->setValue($this, $service);
 			$this->InjectableTrait_alreadyInjected[$propertyName] = true;
 		} else {
 			if (array_key_exists($propertyName, $this->InjectableTrait_alreadyInjected)) {
@@ -146,8 +150,8 @@ trait InjectableTrait
 	public final function InjectableTrait_injectionCompleted()
 	{
 		$this->InjectableTrait_injectionCompleted = true;
-		if (method_exists($this, 'startup')) {
-			$method = $this->InjectableTrait_getReflection()->getMethod('startup');
+		if (method_exists($this, 'onInjectionCompleted')) {
+			$method = $this->InjectableTrait_getReflection()->getMethod('onInjectionCompleted');
 			$method->setAccessible(true);
 			$method->invoke($this);
 		}

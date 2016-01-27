@@ -22,6 +22,11 @@ abstract class AService implements IInjectableService
 	const INJECT_SERVICE_ANNOTATION = 'inject';
 	const TYPE_ANNOTATION = 'var';
 
+	protected function onInjectionCompleted()
+	{
+		$this->startup();
+	}
+
 
 	/**
 	 * Called when all properties has been injected.

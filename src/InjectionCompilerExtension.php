@@ -87,6 +87,21 @@ class InjectionCompilerExtension extends CompilerExtension
 	}
 
 
+	/**
+	 * @param $className
+	 *
+	 * @return array
+	 */
+	private static function getClassTraits($className)
+	{
+		$traits = class_uses($className);
+		while ($className = get_parent_class($className)) {
+			$traits += class_uses($className);
+		}
+		return $traits;
+	}
+
+
 	public function beforeCompile()
 	{
 		$builder = $this->getContainerBuilder();
@@ -178,7 +193,7 @@ class InjectionCompilerExtension extends CompilerExtension
 	 */
 	private static function usesInjectableTrait($className)
 	{
-		return in_array(InjectableTrait::class, class_uses($className));
+		return in_array(InjectableTrait::class, self::getClassTraits($className));
 	}
 
 

@@ -275,6 +275,8 @@ class InjectionCompilerExtension extends CompilerExtension
 		}
 		$injectionProperties = $this->getInjectionByTypeProperties($class, $methodMapping);
 		foreach ($injectionProperties as $injectionProperty => $injectedServiceType) {
+			// make sure there is '\' in name, to make Nette treat it as a type
+			$injectedServiceType = '\\' . ltrim($injectedServiceType, '\\');
 			$definition->addSetup(
 				$methodMapping[self::IIS_INJECT_SERVICE_METHOD],
 				[$injectionProperty, '@' . $injectedServiceType]
